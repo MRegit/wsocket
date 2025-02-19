@@ -1,0 +1,25 @@
+[2025-02-19 17:31:06] [INFO] Servidor WebSocket iniciado en wss://44.233.151.27:10000
+[2025-02-19 17:32:52] [INFO] Servidor WebSocket iniciado en wss://0.0.0.0:5000
+[2025-02-19 17:44:21] [INFO] Servidor WebSocket iniciado en wss://127.0.0.1:5000
+[2025-02-19 17:44:29] [INFO] Nueva conexión desde 127.0.0.1 - ID: 67
+[2025-02-19 17:44:29] [WARNING] Token inválido recibido de ID: 67 - IP: 127.0.0.1 - Token: 
+[2025-02-19 17:44:51] [INFO] Nueva conexión desde 127.0.0.1 - ID: 105
+[2025-02-19 17:44:51] [WARNING] Token inválido recibido de ID: 105 - IP: 127.0.0.1 - Token: 
+[2025-02-19 17:44:55] [WARNING] Token inválido recibido de ID: 67 - IP: 127.0.0.1 - Token: 
+[2025-02-19 17:45:05] [WARNING] Token inválido recibido de ID: 105 - IP: 127.0.0.1 - Token: 
+[2025-02-19 17:45:43] [INFO] Conexión cerrada - ID: 105
+[2025-02-19 17:45:46] [INFO] Nueva conexión desde 127.0.0.1 - ID: 113
+[2025-02-19 17:45:46] [WARNING] Token inválido recibido de ID: 113 - IP: 127.0.0.1 - Token: 
+[2025-02-19 17:45:56] [WARNING] Token inválido recibido de ID: 113 - IP: 127.0.0.1 - Token: 
+[2025-02-19 17:49:16] [INFO] Conexión cerrada - ID: 67
+[2025-02-19 17:49:18] [INFO] Conexión cerrada - ID: 113
+[2025-02-19 17:50:33] [INFO] Nueva conexión desde 127.0.0.1 - ID: 121
+[2025-02-19 17:50:33] [WARNING] Token inválido recibido de ID: 121 - IP: 127.0.0.1 - Token: token_seguridad
+[2025-02-19 17:50:35] [INFO] Nueva conexión desde 127.0.0.1 - ID: 126
+[2025-02-19 17:50:35] [WARNING] Token inválido recibido de ID: 126 - IP: 127.0.0.1 - Token: token_seguridad
+[2025-02-19 17:50:39] [WARNING] Token inválido recibido de ID: 121 - IP: 127.0.0.1 - Token: token_seguridad
+[2025-02-19 17:50:47] [WARNING] Token inválido recibido de ID: 126 - IP: 127.0.0.1 - Token: token_seguridad
+[2025-02-19 17:53:06] [INFO] Conexión cerrada - ID: 121
+[2025-02-19 17:53:08] [INFO] Conexión cerrada - ID: 126
+[2025-02-19 17:53:12] [INFO] Nueva conexión desde 127.0.0.1 - ID: 135
+[2025-02-19 17:53:13] [INFO] Nueva conexión desde 127.0.0.1 - ID: 139

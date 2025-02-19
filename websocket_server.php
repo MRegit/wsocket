@@ -175,6 +175,7 @@ try {
     // Agregar ruta de health check
     $app->route('/health', new HealthCheckHandler($logger), ['*']);
     $routes = [
+        '/chat',
         '/cirugia',
         '/admision',
         '/enfermeria',
