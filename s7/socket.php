@@ -159,7 +159,7 @@ try {
     $host = isset($_ENV['WS_HOST']) ? $_ENV['WS_HOST'] : '0.0.0.0';
     $port = (int)(isset($_ENV['WS_PORT']) ? $_ENV['WS_PORT'] : 8000);
 
-    $app = new App($host, $port);
+    $app = new App($host, $port,'0.0.0.0');
     $app->route('/health', new HealthCheckHandler($logger), ['*']);
     
     $routes = [
