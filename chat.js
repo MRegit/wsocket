@@ -37,7 +37,7 @@ function joinChat() {
 function initializeWebSocket() {
     try {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//127.0.0.1:5000/chat`;
+        const wsUrl = `${protocol}//35.232.99.246:5000/chat`;
         
         ws = new WebSocket(wsUrl);
         
