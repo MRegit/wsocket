@@ -1,72 +1,82 @@
-# servidor.py
 import asyncio
 import websockets
 import logging
 import json
+import os
 from datetime import datetime
 
-# Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    filename='websocket_py.log'
-)
+# Configuración de logging
+LOG_FILE = "logs_ws/websocket.log"
+os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s', handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler()])
 
-# Almacenar conexiones activas
-CLIENTS = set()
+# Cargar variables de entorno desde .env
+def cargar_env(ruta):
+    if not os.path.exists(ruta):
+        raise FileNotFoundError("Archivo .env no encontrado")
+    with open(ruta) as f:
+        for linea in f:
+            if linea.strip() and not linea.startswith('#'):
+                clave, valor = linea.strip().split('=', 1)
+                os.environ[clave] = valor
 
-async def handle_connection(websocket, path):
-    try:
-        # Registrar nueva conexión
-        client_info = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
-        logging.info(f"Nueva conexión desde {client_info}")
-        
-        # Añadir cliente al set de conexiones
-        CLIENTS.add(websocket)
-        
-        # Enviar mensaje de bienvenida
-        await websocket.send(json.dumps({
-            "type": "welcome",
-            "message": "Conectado al servidor WebSocket",
-            "timestamp": datetime.now().isoformat()
-        }))
+cargar_env("../.env")
 
-        # Mantener conexión y escuchar mensajes
-        async for message in websocket:
-            try:
-                # Registrar mensaje recibido
-                logging.info(f"Mensaje recibido de {client_info}: {message}")
+# Clase para manejar conexiones WebSocket
+class WebSocketFormHandler:
+    def __init__(self):
+        self.clients = set()
+        logging.info("WebSocketFormHandler inicializado")
+
+    async def handler(self, websocket, path):
+        self.clients.add(websocket)
+        logging.info(f"Nueva conexión desde {websocket.remote_address}")
+        try:
+            async for message in websocket:
+                logging.info(f"Mensaje recibido: {message}")
+                data = json.loads(message)
                 
-                # Enviar eco del mensaje
-                response = {
-                    "type": "echo",
-                    "original_message": message,
-                    "timestamp": datetime.now().isoformat()
-                }
-                await websocket.send(json.dumps(response))
+                if 'token' not in data or data['token'] != os.environ.get('WS_AUTH_TOKEN'):
+                    logging.warning("Token inválido")
+                    continue
                 
-            except Exception as e:
-                logging.error(f"Error procesando mensaje: {str(e)}")
-                
-    except websockets.exceptions.ConnectionClosed:
-        logging.info(f"Cliente desconectado normalmente: {client_info}")
-    except Exception as e:
-        logging.error(f"Error en la conexión: {str(e)}")
-    finally:
-        # Remover cliente del set de conexiones
-        CLIENTS.remove(websocket)
-        logging.info(f"Conexión cerrada con {client_info}")
+                for client in self.clients:
+                    if client != websocket:
+                        await client.send(message)
+                        logging.info("Mensaje reenviado a otro cliente")
+        except Exception as e:
+            logging.error(f"Error en conexión: {e}")
+        finally:
+            self.clients.remove(websocket)
+            logging.info(f"Conexión cerrada desde {websocket.remote_address}")
 
+# Health Check Handler
+async def health_check(websocket, path):
+    logging.info(f"Health Check - Conexión desde {websocket.remote_address}")
+    response = json.dumps({
+        'status': 'healthy',
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'message': 'WebSocket server is running'
+    })
+    await websocket.send(response)
+    logging.info(f"Health Check - Respuesta enviada: {response}")
+    await websocket.close()
+
+# Configurar servidor WebSocket
 async def main():
-    # Iniciar servidor
-    host = "0.0.0.0"  # Escuchar en todas las interfaces
-    port = 5000
+    host = os.environ.get('WS_HOST', '0.0.0.0')
+    port = int(os.environ.get('WS_PORT', 5000))
     
-    logging.info(f"Iniciando servidor WebSocket en {host}:{port}")
+    handler = WebSocketFormHandler()
     
-    async with websockets.serve(handle_connection, host, port):
-        logging.info("Servidor WebSocket iniciado correctamente")
-        await asyncio.Future()  # Ejecutar indefinidamente
+    start_server = websockets.serve(handler.handler, host, port)
+    start_health = websockets.serve(health_check, host, port + 1)
+    
+    logging.info(f"Servidor WebSocket iniciado en {host}:{port}")
+    await asyncio.gather(start_server, start_health)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Servidor WebSocket detenido manualmente")
