@@ -1,0 +1,11 @@
+2025-02-21 13:51:40,042 - INFO - Iniciando servidor WebSocket en 0.0.0.0:5000
+2025-02-21 13:51:40,092 - INFO - server listening on 0.0.0.0:5000
+2025-02-21 13:51:40,092 - INFO - Servidor WebSocket iniciado correctamente
+2025-02-21 13:52:26,812 - INFO - connection rejected (426 Upgrade Required)
+2025-02-21 13:52:26,813 - INFO - connection closed
+2025-02-21 13:53:35,354 - INFO - connection open
+2025-02-21 13:53:35,354 - INFO - Nueva conexión desde 181.175.111.227:63054
+2025-02-21 13:54:01,618 - INFO - Conexión cerrada con 181.175.111.227:63054
+2025-02-21 13:54:01,618 - INFO - connection closed
+2025-02-21 13:54:01,618 - INFO - server closing
+2025-02-21 13:54:01,618 - INFO - server closed
