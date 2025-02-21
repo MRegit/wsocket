@@ -121,40 +121,57 @@ class WebSocketFormHandler implements MessageComponentInterface
     {
         $this->clients = new \SplObjectStorage();
         $this->logger = $logger;
+        $this->logger->info("WebSocketFormHandler construido");
     }
 
     public function onOpen(ConnectionInterface $conn)
     {
-        $ip = isset($conn->remoteAddress) ? $conn->remoteAddress : '';
-
+        $this->logger->info("Nueva conexión abierta:");
+        $this->logger->info("IP: " . $conn->remoteAddress);
+        $this->logger->info("Headers: " . print_r($conn->httpRequest->getHeaders(), true));
+        $this->logger->info("URI: " . $conn->httpRequest->getUri());
+        
         $this->clients->attach($conn);
-        $this->logger->info("Nueva conexión desde $ip - ID: {$conn->resourceId}");
     }
 
     public function onMessage(ConnectionInterface $from, $msg)
     {
-        $data = json_decode($msg, true);
-        if (empty($data['token']) || $data['token'] !== MD5($_ENV['WS_AUTH_TOKEN'])) {
-            $this->logger->warning("Token inválido recibido de ID: {$from->resourceId} - IP: {$from->remoteAddress} - Token: {$data['token']}");
-            return;
-        }
-
-        foreach ($this->clients as $client) {
-            if ($from !== $client) {
-                $client->send($msg);
+        $this->logger->info("Mensaje recibido de {$from->remoteAddress}: $msg");
+        try {
+            $data = json_decode($msg, true);
+            $this->logger->info("Datos decodificados: " . print_r($data, true));
+            
+            if (empty($data['token'])) {
+                $this->logger->warning("Token no proporcionado");
+                return;
             }
+            
+            if ($data['token'] !== MD5($_ENV['WS_AUTH_TOKEN'])) {
+                $this->logger->warning("Token inválido");
+                return;
+            }
+
+            foreach ($this->clients as $client) {
+                if ($from !== $client) {
+                    $client->send($msg);
+                    $this->logger->info("Mensaje reenviado a cliente");
+                }
+            }
+        } catch (\Exception $e) {
+            $this->logger->error("Error procesando mensaje: " . $e->getMessage());
         }
     }
 
     public function onClose(ConnectionInterface $conn)
     {
+        $this->logger->info("Conexión cerrada desde: " . $conn->remoteAddress);
         $this->clients->detach($conn);
-        $this->logger->info("Conexión cerrada - ID: {$conn->resourceId}");
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e)
     {
-        $this->logger->error("Error en ID {$conn->resourceId}: {$e->getMessage()}");
+        $this->logger->error("Error en conexión {$conn->remoteAddress}: " . $e->getMessage());
+        $this->logger->error("Stack trace: " . $e->getTraceAsString());
         $conn->close();
     }
 }
@@ -166,9 +183,10 @@ try {
     $host = isset($_ENV['WS_HOST']) ? $_ENV['WS_HOST'] : '0.0.0.0';
     $port = (int)(isset($_ENV['WS_PORT']) ? $_ENV['WS_PORT'] : 5000);
 
-    $logger->info("Iniciando servidor con configuración:");
+    $logger->info("Iniciando servidor WebSocket:");
     $logger->info("Host: $host");
     $logger->info("Port: $port");
+    $logger->info("ENV vars: " . print_r($_ENV, true));
 
     $app = new App($host, $port, '0.0.0.0');
     
@@ -219,6 +237,7 @@ try {
     $logger->info("Servidor WebSocket iniciado correctamente");
     $app->run();
 } catch (\Exception $e) {
-    $logger->error("Error crítico al iniciar el servidor: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+    $logger->error("Error crítico: " . $e->getMessage());
+    $logger->error("Stack trace: " . $e->getTraceAsString());
     throw $e;
 }
