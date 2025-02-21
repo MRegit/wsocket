@@ -4,6 +4,8 @@ require __DIR__ . '/vendor/autoload.php';
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use Ratchet\App;
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 function cargarEnv($ruta)
 {
@@ -82,24 +84,29 @@ class HealthCheckHandler implements MessageComponentInterface
 
     public function onOpen(ConnectionInterface $conn)
     {
-        $response = json_encode([
-            'status' => 'healthy',
-            'timestamp' => date('Y-m-d H:i:s'),
-            'message' => 'WebSocket server is running'
-        ]);
-        $conn->send($response);
+        $this->logger->info("Health Check - Conexión abierta desde: " . $conn->remoteAddress);
+        try {
+            $response = json_encode([
+                'status' => 'healthy',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'message' => 'WebSocket server is running'
+            ]);
+            $conn->send($response);
+            $this->logger->info("Health Check - Respuesta enviada: " . $response);
+        } catch (\Exception $e) {
+            $this->logger->error("Health Check - Error al enviar respuesta: " . $e->getMessage());
+        }
         $conn->close();
+    }
 
-        $this->logger->info("Health check realizado desde {$conn->remoteAddress}");
+    public function onError(ConnectionInterface $conn, \Exception $e)
+    {
+        $this->logger->error("Health Check - Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+        $conn->close();
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {}
     public function onClose(ConnectionInterface $conn) {}
-    public function onError(ConnectionInterface $conn, \Exception $e)
-    {
-        $this->logger->error("Error en health check: {$e->getMessage()}");
-        $conn->close();
-    }
 }
 
 /**
@@ -157,9 +164,41 @@ $logger = new FileLogger();
 
 try {
     $host = isset($_ENV['WS_HOST']) ? $_ENV['WS_HOST'] : '0.0.0.0';
-    $port = (int)(isset($_ENV['WS_PORT']) ? $_ENV['WS_PORT'] : 8000);
+    $port = (int)(isset($_ENV['WS_PORT']) ? $_ENV['WS_PORT'] : 5000);
 
-    $app = new App($host, $port,'0.0.0.0');
+    $logger->info("Iniciando servidor con configuración:");
+    $logger->info("Host: $host");
+    $logger->info("Port: $port");
+
+    $app = new App($host, $port, '0.0.0.0');
+    
+    // Añade una ruta de prueba simple
+    $app->route('/test', new class($logger) implements MessageComponentInterface {
+        protected $logger;
+        
+        public function __construct($logger) {
+            $this->logger = $logger;
+        }
+        
+        public function onOpen(ConnectionInterface $conn) {
+            $this->logger->info("Test - Nueva conexión:");
+            $this->logger->info("RemoteAddress: " . $conn->remoteAddress);
+            $this->logger->info("ResourceId: " . $conn->resourceId);
+            $conn->send("Test connection successful");
+        }
+        
+        public function onMessage(ConnectionInterface $from, $msg) {
+            $this->logger->info("Test - Mensaje recibido: $msg");
+        }
+        
+        public function onClose(ConnectionInterface $conn) {
+            $this->logger->info("Test - Conexión cerrada");
+        }
+        
+        public function onError(ConnectionInterface $conn, \Exception $e) {
+            $this->logger->error("Test - Error: " . $e->getMessage());
+        }
+    }, ['*']);
     $app->route('/health', new HealthCheckHandler($logger), ['*']);
     
     $routes = [
@@ -177,8 +216,9 @@ try {
         $app->route($route, new WebSocketFormHandler($logger), ['*']);
     }
 
-    $logger->info("Servidor WebSocket iniciado en wss://$host:$port");
+    $logger->info("Servidor WebSocket iniciado correctamente");
     $app->run();
-} catch (Exception $e) {
-    $logger->error("Error crítico: " . $e->getMessage());
+} catch (\Exception $e) {
+    $logger->error("Error crítico al iniciar el servidor: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+    throw $e;
 }
