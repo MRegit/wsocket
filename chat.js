@@ -105,7 +105,7 @@ class SecureChat {
             type: 'join',
             username: this.#username,
             token: atob(CONFIG.AUTH_TOKEN),
-            form_name: 'chat',
+            form_name: 'chat_room',
             message: `${this.#username} se ha unido al chat`
         });
     }
