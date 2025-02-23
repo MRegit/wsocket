@@ -1,6 +1,6 @@
 // Configuración básica encriptada usando un esquema simple de ofuscación
 const CONFIG = {
-    WS_URL: btoa('ws://34.171.46.191:5000/chat_room'),
+    WS_URL: btoa('ws://34.171.46.191:5000'),
     AUTH_TOKEN: btoa('b8153f040e407fc7462a12e8e9e03fbd'),
 };
 
@@ -28,7 +28,7 @@ class SecureChat {
                 username: this.#username,
                 message: message,
                 token: atob(CONFIG.AUTH_TOKEN),
-                form_name: 'chat',
+                form_name: 'chat_room',
                 timestamp: new Date().toISOString()
             };
 
