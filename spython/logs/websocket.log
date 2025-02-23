@@ -1,0 +1,46 @@
+2025-02-23 10:18:05,794 [INFO] server listening on 0.0.0.0:5000
+2025-02-23 10:19:46,829 [INFO] connection open
+2025-02-23 10:19:48,575 [INFO] Message received from 127.0.0.1
+2025-02-23 10:24:44,405 [INFO] server closing
+2025-02-23 10:24:44,406 [INFO] server closed
+2025-02-23 11:06:24,859 [INFO] server listening on 0.0.0.0:5000
+2025-02-23 11:06:45,257 [INFO] connection open
+2025-02-23 11:06:45,258 [ERROR] connection handler failed
+Traceback (most recent call last):
+  File "I:\RENDER\Proyectos personales\chatPHP\wsocket\.venv\Lib\site-packages\websockets\asyncio\server.py", line 376, in conn_handler
+    await self.handler(connection)
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: WebSocketServer.handler() missing 1 required positional argument: 'path'
+2025-02-23 11:15:31,436 [INFO] server closing
+2025-02-23 11:15:31,437 [INFO] server closed
+2025-02-23 11:15:31,822 [INFO] server listening on 0.0.0.0:5000
+2025-02-23 11:15:35,672 [INFO] connection open
+2025-02-23 11:15:35,672 [ERROR] connection handler failed
+Traceback (most recent call last):
+  File "I:\RENDER\Proyectos personales\chatPHP\wsocket\.venv\Lib\site-packages\websockets\asyncio\server.py", line 376, in conn_handler
+    await self.handler(connection)
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: WebSocketServer.handler() missing 1 required positional argument: 'path'
+2025-02-23 11:18:27,301 [INFO] server closing
+2025-02-23 11:18:27,301 [INFO] server closed
+2025-02-23 11:18:29,319 [INFO] server listening on 0.0.0.0:5000
+2025-02-23 11:18:33,255 [INFO] connection open
+2025-02-23 11:18:33,255 [ERROR] connection handler failed
+Traceback (most recent call last):
+  File "I:\RENDER\Proyectos personales\chatPHP\wsocket\.venv\Lib\site-packages\websockets\asyncio\server.py", line 376, in conn_handler
+    await self.handler(connection)
+  File "i:\RENDER\Proyectos personales\chatPHP\wsocket\spython\websocket.py", line 210, in handler
+    if "origin" in websocket.request_headers:
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ServerConnection' object has no attribute 'request_headers'
+2025-02-23 11:18:38,936 [INFO] connection open
+2025-02-23 11:18:38,936 [ERROR] connection handler failed
+Traceback (most recent call last):
+  File "I:\RENDER\Proyectos personales\chatPHP\wsocket\.venv\Lib\site-packages\websockets\asyncio\server.py", line 376, in conn_handler
+    await self.handler(connection)
+  File "i:\RENDER\Proyectos personales\chatPHP\wsocket\spython\websocket.py", line 210, in handler
+    if "origin" in websocket.request_headers:
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ServerConnection' object has no attribute 'request_headers'
+2025-02-23 11:23:55,793 [INFO] server closing
+2025-02-23 11:23:55,793 [INFO] server closed

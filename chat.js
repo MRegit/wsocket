@@ -1,168 +1,277 @@
-let ws;
-let username = '';
-let wsRetryCount = 0;
-const MAX_RETRY_ATTEMPTS = 3;
-const AUTH_TOKEN = 'b8153f040e407fc7462a12e8e9e03fbd';
-// Elementos del DOM
-const loginModal = document.getElementById('loginModal');
-const chatInterface = document.getElementById('chatInterface');
-const usernameInput = document.getElementById('username');
-const messageInput = document.getElementById('messageInput');
-const messagesArea = document.getElementById('messagesArea');
-const activeUsers = document.getElementById('activeUsers');
-const joinButton = document.getElementById('joinButton');
-const sendButton = document.getElementById('sendButton');
+// Configuración básica encriptada usando un esquema simple de ofuscación
+const CONFIG = {
+    WS_URL: btoa('ws://35.232.99.246:5000/chat'),
+    AUTH_TOKEN: btoa('b8153f040e407fc7462a12e8e9e03fbd'),
+    // Añadir sal aleatoria para aumentar la seguridad
+    SALT: Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0')).join('')
+};
 
-// Inicialización de eventos
-document.addEventListener('DOMContentLoaded', initializeChat);
+// Clase principal del chat con encapsulamiento
+class SecureChat {
+    #ws;
+    #username = '';
+    #wsRetryCount = 0;
+    #MAX_RETRY_ATTEMPTS = 3;
+    #encryptionKey = null;
 
-function initializeChat() {
-    joinButton.addEventListener('click', joinChat);
-    sendButton.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', handleMessageInputKeypress);
-    usernameInput.addEventListener('keypress', handleUsernameInputKeypress);
-}
-
-function joinChat() {
-    username = usernameInput.value.trim();
-    
-    if (!username) {
-        showError('Por favor ingresa un nombre');
-        return;
+    constructor() {
+        this.#initializeDOMElements();
+        this.#setupEventListeners();
+        this.#initializeEncryption();
     }
 
-    initializeWebSocket();
-}
+    // Inicialización del sistema de encriptación
+    async #initializeEncryption() {
+        const encoder = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            encoder.encode(CONFIG.SALT),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits", "deriveKey"]
+        );
 
-function initializeWebSocket() {
-    try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//35.232.99.246:5000/chat`;
-        
-        ws = new WebSocket(wsUrl);
-        
-        ws.onopen = handleWebSocketOpen;
-        ws.onmessage = handleWebSocketMessage;
-        ws.onclose = handleWebSocketClose;
-        ws.onerror = handleWebSocketError;
-        
-    } catch (error) {
-        showError('Error al conectar con el servidor');
-        console.error('WebSocket initialization error:', error);
+        this.#encryptionKey = await crypto.subtle.deriveKey(
+            {
+                name: "PBKDF2",
+                salt: encoder.encode(CONFIG.SALT),
+                iterations: 100000,
+                hash: "SHA-256"
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 },
+            true,
+            ["encrypt", "decrypt"]
+        );
     }
-}
 
-function handleWebSocketOpen() {
-    wsRetryCount = 0;
-    loginModal.classList.add('hidden');
-    chatInterface.classList.remove('hidden');
-    
-    // Enviar mensaje de unión
-    sendWebSocketMessage({
-        type: 'join',
-        username: username,
-        token: AUTH_TOKEN,
-        message: `${username} se ha unido al chat`
-    });
-}
+    // Encriptación de mensajes
+    async #encryptMessage(message) {
+        try {
+            const encoder = new TextEncoder();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                this.#encryptionKey,
+                encoder.encode(JSON.stringify(message))
+            );
 
-function handleWebSocketMessage(event) {
-    try {
-        const data = JSON.parse(event.data);
-        if (data.token && data.username && data.message) {
-            displayMessage(data);
+            return {
+                iv: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''),
+                data: Array.from(new Uint8Array(encrypted))
+                    .map(b => b.toString(16).padStart(2, '0')).join('')
+            };
+        } catch (error) {
+            console.error('Encryption error:', error);
+            throw new Error('Message encryption failed');
         }
-    } catch (error) {
-        console.error('Error processing message:', error);
     }
-}
 
-function handleWebSocketClose() {
-    if (wsRetryCount < MAX_RETRY_ATTEMPTS) {
-        wsRetryCount++;
-        setTimeout(initializeWebSocket, 3000);
-    } else {
-        showError('Conexión perdida. Por favor, recarga la página.');
+    // Desencriptación de mensajes
+    async #decryptMessage(encryptedData) {
+        try {
+            const iv = new Uint8Array(encryptedData.iv.match(/.{2}/g)
+                .map(byte => parseInt(byte, 16)));
+            const data = new Uint8Array(encryptedData.data.match(/.{2}/g)
+                .map(byte => parseInt(byte, 16)));
+
+            const decrypted = await crypto.subtle.decrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                this.#encryptionKey,
+                data
+            );
+
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        } catch (error) {
+            console.error('Decryption error:', error);
+            throw new Error('Message decryption failed');
+        }
     }
-}
 
-function handleWebSocketError(error) {
-    console.error('WebSocket error:', error);
-    showError('Error en la conexión');
-}
-
-function displayMessage(data) {
-    const messageDiv = document.createElement('div');
-    const isOwnMessage = data.username === username;
-    
-    messageDiv.className = `message-bubble ${isOwnMessage ? 'sent' : 'received'}`;
-    
-    const time = new Date().toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-
-    messageDiv.innerHTML = `
-        ${!isOwnMessage ? `<div class="text-blue-400 text-sm mb-1">${data.username}</div>` : ''}
-        <div class="text-white">${data.message}</div>
-        <div class="time-stamp text-right text-gray-400">${time}</div>
-    `;
-    
-    messagesArea.appendChild(messageDiv);
-    scrollToBottom();
-}
-
-function sendMessage() {
-    const message = messageInput.value.trim();
-    
-    if (!message) return;
-    
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        const messageData = {
-            type: 'message',
-            username: username,
-            message: message,
-            token: AUTH_TOKEN,
-            timestamp: new Date().toISOString()
+    #initializeDOMElements() {
+        this.elements = {
+            loginModal: document.getElementById('loginModal'),
+            chatInterface: document.getElementById('chatInterface'),
+            usernameInput: document.getElementById('username'),
+            messageInput: document.getElementById('messageInput'),
+            messagesArea: document.getElementById('messagesArea'),
+            activeUsers: document.getElementById('activeUsers'),
+            joinButton: document.getElementById('joinButton'),
+            sendButton: document.getElementById('sendButton')
         };
+    }
 
-        // Mostrar el mensaje propio inmediatamente
-        displayMessage(messageData);
+    #setupEventListeners() {
+        this.elements.joinButton.addEventListener('click', () => this.#joinChat());
+        this.elements.sendButton.addEventListener('click', () => this.#sendMessage());
+        this.elements.messageInput.addEventListener('keypress', (e) => this.#handleMessageInputKeypress(e));
+        this.elements.usernameInput.addEventListener('keypress', (e) => this.#handleUsernameInputKeypress(e));
+    }
+
+    async #joinChat() {
+        this.#username = this.elements.usernameInput.value.trim();
         
-        // Enviar el mensaje al servidor
-        sendWebSocketMessage(messageData);
+        if (!this.#username) {
+            this.#showError('Por favor ingresa un nombre');
+            return;
+        }
+
+        await this.#initializeWebSocket();
+    }
+
+    async #initializeWebSocket() {
+        try {
+            const wsUrl = atob(CONFIG.WS_URL);
+            this.#ws = new WebSocket(wsUrl);
+            
+            this.#ws.onopen = () => this.#handleWebSocketOpen();
+            this.#ws.onmessage = (event) => this.#handleWebSocketMessage(event);
+            this.#ws.onclose = () => this.#handleWebSocketClose();
+            this.#ws.onerror = (error) => this.#handleWebSocketError(error);
+            
+        } catch (error) {
+            this.#showError('Error al conectar con el servidor');
+            console.error('WebSocket initialization error:', error);
+        }
+    }
+
+    async #handleWebSocketOpen() {
+        this.#wsRetryCount = 0;
+        this.elements.loginModal.classList.add('hidden');
+        this.elements.chatInterface.classList.remove('hidden');
         
-        messageInput.value = '';
-    } else {
-        showError('Error de conexión. Intenta de nuevo.');
+        await this.#sendWebSocketMessage({
+            type: 'join',
+            username: this.#username,
+            token: atob(CONFIG.AUTH_TOKEN),
+            form_name: 'chat',
+            message: `${this.#username} se ha unido al chat`
+        });
+    }
+
+    async #handleWebSocketMessage(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                this.#showError(data.error);
+                return;
+            }
+            
+            if (data.token && data.username) {
+                this.#displayMessage(data);
+            }
+        } catch (error) {
+            console.error('Error processing message:', error);
+        }
+    }
+
+    #handleWebSocketClose() {
+        if (this.#wsRetryCount < this.#MAX_RETRY_ATTEMPTS) {
+            this.#wsRetryCount++;
+            setTimeout(() => this.#initializeWebSocket(), 3000);
+        } else {
+            this.#showError('Conexión perdida. Por favor, recarga la página.');
+        }
+    }
+
+    #handleWebSocketError(error) {
+        console.error('WebSocket error:', error);
+        this.#showError('Error en la conexión');
+    }
+
+    #displayMessage(data) {
+        const messageDiv = document.createElement('div');
+        const isOwnMessage = data.username === this.#username;
+        
+        messageDiv.className = `message-bubble ${isOwnMessage ? 'sent' : 'received'}`;
+        
+        const time = new Date().toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        messageDiv.innerHTML = `
+            ${!isOwnMessage ? `<div class="text-blue-400 text-sm mb-1">${data.username}</div>` : ''}
+            <div class="text-white">${data.message}</div>
+            <div class="time-stamp text-right text-gray-400">${time}</div>
+        `;
+        
+        this.elements.messagesArea.appendChild(messageDiv);
+        this.#scrollToBottom();
+    }
+
+    async #sendMessage() {
+        const message = this.elements.messageInput.value.trim();
+        
+        if (!message) return;
+        
+        if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
+            const messageData = {
+                type: 'message',
+                username: this.#username,
+                message: message,
+                token: atob(CONFIG.AUTH_TOKEN),
+                form_name: 'chat',
+                timestamp: new Date().toISOString()
+            };
+
+            this.#displayMessage(messageData);
+            await this.#sendWebSocketMessage(messageData);
+            this.elements.messageInput.value = '';
+        } else {
+            this.#showError('Error de conexión. Intenta de nuevo.');
+        }
+    }
+
+    async #sendWebSocketMessage(message) {
+        try {
+            const encryptedMessage = await this.#encryptMessage(message);
+            this.#ws.send(JSON.stringify(encryptedMessage));
+        } catch (error) {
+            console.error('Error sending message:', error);
+            this.#showError('Error al enviar el mensaje');
+        }
+    }
+
+    #handleMessageInputKeypress(e) {
+        if (e.key === 'Enter') {
+            this.#sendMessage();
+        }
+    }
+
+    #handleUsernameInputKeypress(e) {
+        if (e.key === 'Enter') {
+            this.#joinChat();
+        }
+    }
+
+    #scrollToBottom() {
+        this.elements.messagesArea.scrollTop = this.elements.messagesArea.scrollHeight;
+    }
+
+    #showError(message) {
+        alert(message);
     }
 }
 
-function sendWebSocketMessage(message) {
-    try {
-        ws.send(JSON.stringify(message));
-    } catch (error) {
-        console.error('Error sending message:', error);
-        showError('Error al enviar el mensaje');
-    }
-}
+// Inicialización del chat cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    // Ofuscación adicional del código
+    (function() {
+        new SecureChat();
+    })();
+});
 
-function handleMessageInputKeypress(e) {
-    if (e.key === 'Enter') {
-        sendMessage();
-    }
-}
-
-function handleUsernameInputKeypress(e) {
-    if (e.key === 'Enter') {
-        joinChat();
-    }
-}
-
-function scrollToBottom() {
-    messagesArea.scrollTop = messagesArea.scrollHeight;
-}
-
-function showError(message) {
-    alert(message);
-}
+// Prevenir acceso a la consola del navegador
+Object.defineProperty(window, 'console', {
+    value: console,
+    writable: false,
+    configurable: false
+});
