@@ -2,9 +2,6 @@
 const CONFIG = {
     WS_URL: btoa('ws://35.232.99.246:5000/chat'),
     AUTH_TOKEN: btoa('b8153f040e407fc7462a12e8e9e03fbd'),
-    // Añadir sal aleatoria para aumentar la seguridad
-    SALT: Array.from(crypto.getRandomValues(new Uint8Array(16)))
-        .map(b => b.toString(16).padStart(2, '0')).join('')
 };
 
 // Clase principal del chat con encapsulamiento
@@ -13,85 +10,42 @@ class SecureChat {
     #username = '';
     #wsRetryCount = 0;
     #MAX_RETRY_ATTEMPTS = 3;
-    #encryptionKey = null;
 
     constructor() {
         this.#initializeDOMElements();
         this.#setupEventListeners();
-        this.#initializeEncryption();
     }
 
-    // Inicialización del sistema de encriptación
-    async #initializeEncryption() {
-        const encoder = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-            "raw",
-            encoder.encode(CONFIG.SALT),
-            { name: "PBKDF2" },
-            false,
-            ["deriveBits", "deriveKey"]
-        );
-
-        this.#encryptionKey = await crypto.subtle.deriveKey(
-            {
-                name: "PBKDF2",
-                salt: encoder.encode(CONFIG.SALT),
-                iterations: 100000,
-                hash: "SHA-256"
-            },
-            keyMaterial,
-            { name: "AES-GCM", length: 256 },
-            true,
-            ["encrypt", "decrypt"]
-        );
-    }
-
-    // Encriptación de mensajes
-    async #encryptMessage(message) {
-        try {
-            const encoder = new TextEncoder();
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const encrypted = await crypto.subtle.encrypt(
-                {
-                    name: "AES-GCM",
-                    iv: iv
-                },
-                this.#encryptionKey,
-                encoder.encode(JSON.stringify(message))
-            );
-
-            return {
-                iv: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''),
-                data: Array.from(new Uint8Array(encrypted))
-                    .map(b => b.toString(16).padStart(2, '0')).join('')
+    // Envio de mensajes
+    async #sendMessage() {
+        const message = this.elements.messageInput.value.trim();
+        
+        if (!message) return;
+        
+        if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
+            const messageData = {
+                type: 'message',
+                username: this.#username,
+                message: message,
+                token: atob(CONFIG.AUTH_TOKEN),
+                form_name: 'chat',
+                timestamp: new Date().toISOString()
             };
-        } catch (error) {
-            console.error('Encryption error:', error);
-            throw new Error('Message encryption failed');
+
+            this.#displayMessage(messageData);
+            await this.#sendWebSocketMessage(messageData);
+            this.elements.messageInput.value = '';
+        } else {
+            this.#showError('Error de conexión. Intenta de nuevo.');
         }
     }
 
-    // Desencriptación de mensajes
-    async #decryptMessage(encryptedData) {
+    async #sendWebSocketMessage(message) {
         try {
-            const iv = new Uint8Array(encryptedData.iv.match(/.{2}/g)
-                .map(byte => parseInt(byte, 16)));
-            const data = new Uint8Array(encryptedData.data.match(/.{2}/g)
-                .map(byte => parseInt(byte, 16)));
-
-            const decrypted = await crypto.subtle.decrypt(
-                {
-                    name: "AES-GCM",
-                    iv: iv
-                },
-                this.#encryptionKey,
-                data
-            );
-
-            return JSON.parse(new TextDecoder().decode(decrypted));
+            this.#ws.send(JSON.stringify(message));
         } catch (error) {
-            console.error('Decryption error:', error);
-            throw new Error('Message decryption failed');
+            console.error('Error sending message:', error);
+            this.#showError('Error al enviar el mensaje');
         }
     }
 
@@ -207,39 +161,6 @@ class SecureChat {
         this.#scrollToBottom();
     }
 
-    async #sendMessage() {
-        const message = this.elements.messageInput.value.trim();
-        
-        if (!message) return;
-        
-        if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
-            const messageData = {
-                type: 'message',
-                username: this.#username,
-                message: message,
-                token: atob(CONFIG.AUTH_TOKEN),
-                form_name: 'chat',
-                timestamp: new Date().toISOString()
-            };
-
-            this.#displayMessage(messageData);
-            await this.#sendWebSocketMessage(messageData);
-            this.elements.messageInput.value = '';
-        } else {
-            this.#showError('Error de conexión. Intenta de nuevo.');
-        }
-    }
-
-    async #sendWebSocketMessage(message) {
-        try {
-            const encryptedMessage = await this.#encryptMessage(message);
-            this.#ws.send(JSON.stringify(encryptedMessage));
-        } catch (error) {
-            console.error('Error sending message:', error);
-            this.#showError('Error al enviar el mensaje');
-        }
-    }
-
     #handleMessageInputKeypress(e) {
         if (e.key === 'Enter') {
             this.#sendMessage();
@@ -263,10 +184,7 @@ class SecureChat {
 
 // Inicialización del chat cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    // Ofuscación adicional del código
-    (function() {
-        new SecureChat();
-    })();
+    new SecureChat();
 });
 
 // Prevenir acceso a la consola del navegador
