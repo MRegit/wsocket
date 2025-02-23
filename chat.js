@@ -1,6 +1,6 @@
 // Configuración básica encriptada usando un esquema simple de ofuscación
 const CONFIG = {
-    WS_URL: btoa('ws://35.232.99.246:5000/chat'),
+    WS_URL: btoa('ws://34.171.46.191:5000/chat_room'),
     AUTH_TOKEN: btoa('b8153f040e407fc7462a12e8e9e03fbd'),
 };
 
